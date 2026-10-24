@@ -1,0 +1,12 @@
+BUS VALENCIENNES - VERSION WEB
+
+Pour mettre en ligne : envoie tout le contenu de ce dossier sur ton hébergement (même dossier) :
+   index.html, gtfs.zip, jszip.min.js
+Les horaires sont dans gtfs.zip : ils sont chargés automatiquement, rien à choisir.
+Mise à jour annuelle : remplace gtfs.zip par le nouveau fichier de Transvilles (même nom "gtfs.zip").
+
+bus-valenciennes-autonome.html : même page en un seul fichier (horaires intégrés), à ouvrir directement
+sur un ordinateur ou un téléphone, sans hébergement. (Garde jszip.min.js à côté.)
+
+Remarques : le suivi Dynamic Island n'existe que dans l'app iPhone (dossier Xcode).
+Les horaires sont les horaires officiels prévus, pas le temps réel.
