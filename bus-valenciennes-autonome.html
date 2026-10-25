@@ -48,11 +48,12 @@ body{padding-bottom:100px}
 .sprow{display:flex;gap:8px}.sp{flex:1;margin:10px 0;padding:10px 14px}.sp small{display:block;color:var(--mu);font-size:12px}.sp b{font-size:18px}
 .hl{outline:3px solid var(--ac);outline-offset:2px;animation:fl .6s ease-in-out infinite alternate}
 @keyframes fl{from{box-shadow:0 0 0 0 rgba(255,106,77,0)}to{box-shadow:0 0 34px 8px rgba(255,106,77,.85)}}
+#tb{position:fixed;left:10px;right:92px;bottom:calc(22px + env(safe-area-inset-bottom,0px));z-index:15;padding:6px;margin:0;border-radius:32px}#tb[hidden]{display:none}#tb input{margin:0}
 .sec{color:var(--mu);font-size:12px;text-transform:uppercase;letter-spacing:.6px;padding:12px 8px 4px}a{color:var(--ac)}
 @media (orientation:landscape) and (max-height:520px){
  body{max-width:none;padding:6px calc(14px + env(safe-area-inset-right,0px)) 6px calc(14px + env(safe-area-inset-left,0px))}
  header{padding:6px 14px;margin-bottom:6px}.logo{height:32px}#clock{font-size:28px}
- .pick,#fav,.ctl,#rw,#st,#mic,#ai{display:none}
+ .pick,#fav,.ctl,#rw,#st,#mic,#ai,#tb{display:none}
  #view{display:grid;grid-template-columns:1fr 1fr;gap:8px}#view .card{margin:0}.full{grid-column:1/-1}
  .m{font-size:60px}.nm{font-size:20px}
  html,body{background:#000}.bg{display:none}body{font-family:ui-monospace,Menlo,Consolas,monospace}
@@ -79,6 +80,7 @@ body{padding-bottom:100px}
 <div class="slot"><span>Tranche horaire (facultatif)</span><input type="time" id="s1"><span>à</span><input type="time" id="s2"><button class="chip" id="s0">✕</button></div></div>
 <div id="view"></div>
 <button id="mic" aria-label="Assistant vocal">🎙</button>
+<div id="tb" class="g" hidden><input id="tq" placeholder="✏️ Écris ta question…" enterkeyhint="send" autocomplete="off"></div>
 <p id="rw" style="text-align:center"><button class="chip" id="reset">Mettre à jour les horaires</button></p>
 </div>
 <script src="jszip.min.js"></script>
@@ -266,18 +268,21 @@ function tone(up){try{webkit.messageHandlers.beep.postMessage(up?1:0);return}cat
  try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state=='suspended')AC.resume();const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.type='sine';
   o.frequency.setValueAtTime(up?660:880,t);o.frequency.exponentialRampToValueAtTime(up?990:550,t+.12);
   g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.3,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.17);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.19)}catch(e){}}
-function listen(){stopAll();setLis(true);msg('🎙 Je t’écoute…');tone(1);say('Je t’écoute.',()=>{if(!lis())return;tone(1);startRec()})}
+function noMic(m){setLis(false);msg(m);$('#tb').hidden=false;try{$('#tq').focus()}catch(e){}}
+function listen(){stopAll();setLis(true);msg('🎙 Je t’écoute…');startRec()}
 function startRec(){
  try{webkit.messageHandlers.listen.postMessage(1);return}catch(e){}
+ tone(1);
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!SR){setLis(false);msg('');const v=prompt('Pose ta question (ex. : le prochain bus à Poterne, je vais à la gare)');if(v)answer(v);return}
+ if(!SR){noMic('Micro indisponible ici : écris ta question.');return}
  try{REC&&REC.abort()}catch(e){}
  REC=new SR();REC.lang='fr-FR';REC.interimResults=true;REC.continuous=false;
  REC.onresult=e=>{let s='',f=false;for(const r of e.results){s+=r[0].transcript;if(r.isFinal)f=true}window.onSpeech(s,f)};
  REC.onerror=e=>window.onSpeechErr(e.error||'erreur');REC.onend=()=>setLis(false);
  try{REC.start()}catch(e){window.onSpeechErr(e.message)}}
-window.onSpeech=(t,f)=>{if(f){setLis(false);msg('');tone(0);answer(t)}};
-window.onSpeechErr=e=>{setLis(false);msg(/allowed|denied|permission|audio-capture/.test(e)?'Micro ou reconnaissance vocale non autorisés : active-les dans Réglages.':'Je n’ai rien entendu, réessaie.')};
+window.onSpeech=(t,f)=>{if(f){setLis(false);msg('');$('#tb').hidden=true;try{REC&&REC.stop()}catch(e){}tone(0);answer(t)}};
+window.onSpeechErr=e=>{setLis(false);/allowed|denied|permission|audio-capture/.test(e)?noMic('Micro non autorisé ici : écris ta question, ou autorise-le dans Réglages.'):msg('Je n’ai rien entendu, réessaie.')};
+$('#tq').onkeydown=e=>{if(e.key!='Enter')return;const v=e.target.value.trim();e.target.value='';if(v){e.target.blur();msg('');answer(v)}};
 $('#mic').onclick=()=>{hap();lis()?stopListen():listen()};
 const lcmp=(a,b)=>{const x=parseInt(a),y=parseInt(b);return(isNaN(x)?1e9:x)-(isNaN(y)?1e9:y)||a.localeCompare(b,'fr')};
 function buildLines(){if(S.sr)return;const h=S.h,ti=h.indexOf('trip_id'),si=h.indexOf('stop_id'),id2n=new Map();for(const e of S.byName.values())for(const i of e.ids)id2n.set(i,e.n);
