@@ -11,5 +11,5 @@ sur un ordinateur ou un téléphone, sans hébergement. (Garde jszip.min.js à c
 Remarques : le suivi Dynamic Island n'existe que dans l'app iPhone (dossier Xcode).
 Les horaires sont les horaires officiels prévus, pas le temps réel.
 
-Assistant vocal (bouton 🎙) : sur un navigateur compatible (Safari, Chrome) la page peut utiliser le micro ; sinon écris ta question dans le champ.
+Assistant vocal (bouton 🎙) : sur un navigateur compatible (Safari, Chrome) la page peut utiliser le micro ; sinon une fenêtre te propose d'écrire ta question.
 La version Xcode utilise la reconnaissance vocale native de l'iPhone.

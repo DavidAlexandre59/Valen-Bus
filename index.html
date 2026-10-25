@@ -45,6 +45,9 @@ body{padding-bottom:100px}
 @keyframes pl{0%{box-shadow:0 0 0 0 rgba(255,106,77,.65)}100%{box-shadow:0 0 0 20px rgba(255,106,77,0)}}
 .lc{display:flex;flex-wrap:wrap;gap:8px;max-height:34vh;overflow:auto;padding:2px}#lb{margin:8px 0 0}#lp{margin-top:6px}
 .lb{min-width:54px;border:2px solid transparent;border-radius:14px;padding:9px 8px;font-weight:800;font-size:17px;opacity:.55;cursor:pointer;font-family:inherit}.lb.on{opacity:1;border-color:var(--tx);box-shadow:0 0 0 3px var(--ac)}
+.sprow{display:flex;gap:8px}.sp{flex:1;margin:10px 0;padding:10px 14px}.sp small{display:block;color:var(--mu);font-size:12px}.sp b{font-size:18px}
+.hl{outline:3px solid var(--ac);outline-offset:2px;animation:fl .6s ease-in-out infinite alternate}
+@keyframes fl{from{box-shadow:0 0 0 0 rgba(255,106,77,0)}to{box-shadow:0 0 34px 8px rgba(255,106,77,.85)}}
 .sec{color:var(--mu);font-size:12px;text-transform:uppercase;letter-spacing:.6px;padding:12px 8px 4px}a{color:var(--ac)}
 @media (orientation:landscape) and (max-height:520px){
  body{max-width:none;padding:6px calc(14px + env(safe-area-inset-right,0px)) 6px calc(14px + env(safe-area-inset-left,0px))}
@@ -76,16 +79,13 @@ body{padding-bottom:100px}
 <div class="slot"><span>Tranche horaire (facultatif)</span><input type="time" id="s1"><span>à</span><input type="time" id="s2"><button class="chip" id="s0">✕</button></div></div>
 <div id="view"></div>
 <button id="mic" aria-label="Assistant vocal">🎙</button>
-<div id="ai" class="g" hidden><div class="aih"><b>🎙 Assistant vocal</b><button class="chip" id="aix">✕</button></div>
-<div id="ait"></div><div id="aia"></div>
-<div class="slot"><input id="aiq" placeholder="…ou écris ta question" enterkeyhint="send" autocomplete="off"><button class="chip" id="aim">🎙</button><button class="chip" id="aip">🔇</button></div></div>
 <p id="rw" style="text-align:center"><button class="chip" id="reset">Mettre à jour les horaires</button></p>
 </div>
 <script src="jszip.min.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 const S={byName:new Map(),trips:new Map(),routes:new Map(),cal:[],cd:new Map(),L:[],h:[]};
-let sl=[],RAD=600,lnear=true,hz=4,fav=[],rec=[],fl=[],onlyF=false,slot={f:'',t:''},dir='',cur=null,arr='',op='',LR=null,LD=[];
+let AI=null,sl=[],RAD=600,lnear=true,hz=4,fav=[],rec=[],fl=[],onlyF=false,slot={f:'',t:''},dir='',cur=null,arr='',op='',LR=null,LD=[];
 const AL=[{r:'T2',u:'2026-10-26',t:'Ligne interrompue jusqu’au lundi 26 octobre : prenez les bus relais T2Bus (info transvilles.com, vérifiée le 24/10).'}];
 const alr=n=>{const P=paris(),k=P.y+'-'+p2(P.m)+'-'+p2(P.d);return AL.find(a=>a.r==n&&k<=a.u)};
 try{fav=JSON.parse(localStorage.getItem('fav')||'[]');rec=JSON.parse(localStorage.getItem('rec')||'[]');fl=JSON.parse(localStorage.getItem('fl')||'[]');hz=+localStorage.getItem('hz')||4;sl=JSON.parse(localStorage.getItem('sl')||'[]')}catch(e){}
@@ -140,7 +140,7 @@ function card(g,i){const n=g.r.route_short_name||'?',c=g.r.route_color?'#'+g.r.r
  if(g.k===op)return '<div class="card full opn" data-i="'+i+'">'+st+'<div class="ln">'+bd+'<div class="d"><b>'+esc(g.hd)+'</b><small>Prochains départs ('+(g.tm?'demain':'sur '+hz+' h')+')'+(nat()?' · touche une heure pour la suivre 🔔':'')+'</small></div></div>'+hzl(g).slice(0,80).map((x,j)=>'<div class="dl" data-j="'+j+'"><b class="rem">'+rem(x)+'</b><span class="at">'+x.t+'</span><span class="ar">'+(x.a?'➜ '+x.a:'')+'</span>'+(nat()?'<em>🔔</em>':'')+'</div>').join('')+'</div>';
  return '<div class="card ln tap'+(al?' wn':'')+'" data-i="'+i+'">'+st+bd+'<div class="d"><b>'+esc(g.hd)+'</b>'+(al?'<small class="warn">⚠ '+esc(al.t)+'</small>':'')+(f.a?'<small class="ar2">➜ arrivée '+f.a+'</small>':'')+(hzl(g).length>1?'<small>puis '+hzl(g).slice(1,4).map(x=>x.m<60&&!x.tm?x.m+' min':x.t).join(' · ')+'</small>':'')+'</div><div class="m">'+dm(f)+'</div></div>'}
 function render(c){
- if(!cur)return;const k=key(),isF=fav.includes(k),P=paris(),R=(LR=c&&LR?LR:deps(cur,arr)),
+ if(!cur)return;if(AI)return renderAI();const k=key(),isF=fav.includes(k),P=paris(),R=(LR=c&&LR?LR:deps(cur,arr)),
  D=R.filter(g=>(!dir||g.d==dir)&&(!onlyF||fl.includes(g.r.route_short_name))&&(!sl.length||sl.includes(g.r.route_short_name))).sort((a,b)=>fl.includes(b.r.route_short_name)-fl.includes(a.r.route_short_name));
  LD=D;$('#clock').textContent=P.hm;
  $('#view').innerHTML='<div class="card full top"><div><b class="nm">'+esc(cur)+'</b>'+(arr?'<small>➜ '+esc(arr)+'</small>':'')+(slot.f||slot.t?'<small> · '+(slot.f||'00:00')+' → '+(slot.t||'23:59')+'</small>':'')+'</div><button class="star" id="sb">'+(isF?'★':'☆')+'</button></div>'+
@@ -158,7 +158,7 @@ function live(g,j){const x=g&&hzl(g)[j];if(!x)return;hap();try{webkit.messageHan
 const fa=(el,a,b)=>el.animate([{transform:'perspective(900px) rotateY('+a+'deg)'},{transform:'perspective(900px) rotateY('+b+'deg)'}],{duration:200,easing:'ease-in-out'}).finished;
 function hap(){try{window.webkit.messageHandlers.haptic.postMessage(1);return}catch(e){}try{if(navigator.vibrate)navigator.vibrate(12)}catch(e){}try{const l=document.createElement('label');l.style.cssText='position:fixed;left:-99px;top:0;opacity:0;pointer-events:none';l.innerHTML='<input type="checkbox" switch>';document.body.appendChild(l);l.click();setTimeout(()=>l.remove(),50)}catch(e){}}
 async function flip(i){hap();const el=document.querySelector('[data-i="'+i+'"]'),g=LD[i];if(!g||!el)return;try{await fa(el,0,90)}catch(e){}op=op===g.k?'':g.k;render(true);const n=document.querySelector('[data-i="'+i+'"]');if(n)try{await fa(n,-90,0)}catch(e){}}
-function go(c,a){cur=c;arr=a;dir='';op='';const k=key();$('#q').value=c;$('#q').dataset.sel=c;$('#q2').value=a;$('#q2').dataset.sel=a;rec=[k,...rec.filter(x=>x!=k)].slice(0,8);sv();drawFav();render()}
+function go(c,a){cur=c;arr=a;dir='';op='';AI=null;const k=key();$('#q').value=c;$('#q').dataset.sel=c;$('#q2').value=a;$('#q2').dataset.sel=a;rec=[k,...rec.filter(x=>x!=k)].slice(0,8);sv();drawFav();render()}
 const pick=k=>{const [c,a]=k.split('>');go(c,a||'')};
 function drawFav(){const r=rec.filter(n=>!fav.includes(n)),b=(n,i)=>'<button class="chip" data-n="'+esc(n)+'">'+i+' '+esc(n.replace('>',' ➜ '))+'</button>';
  $('#fav').innerHTML=fav.map(n=>b(n,'★')).join('')+r.map(n=>b(n,'🕘')).join('');$('#fav').querySelectorAll('button').forEach(x=>x.onclick=()=>pick(x.dataset.n))}
@@ -218,50 +218,60 @@ const spM=m=>m<1?'tout de suite':m<60?'dans '+m+' minute'+(m>1?'s':''):'dans '+M
 const minTo=x=>Math.max(0,Math.round(((x.e-Date.now())/1000+(x.rd||0))/60));
 const when=x=>x.tm?'demain à '+spT(x.t):spM(x.m)+', à '+spT(x.t);
 const one=(e,a)=>'ligne '+(e.g.r.route_short_name||'?')+' direction '+tc(e.g.hd)+', '+when(e.x)+(a&&e.x.a?', arrivée à '+spT(e.x.a):'');
-let LAST=null;
-function reply(t){LAST&&(LAST.txt=t);$('#aia').textContent=t;say(t)}
-function answer(raw){$('#ait').textContent='« '+raw+' »';
- if(!S.list){LAST=null;return reply('Les horaires se chargent encore, réessaie dans une seconde.')}
+let HL='',PLAY=0,SK=0,SAYDONE=null;
+function applyHL(){document.querySelectorAll('.hl').forEach(e=>e.classList.remove('hl'));if(!HL)return;const e=document.querySelector(HL);if(e){e.classList.add('hl');try{e.scrollIntoView({block:'center',behavior:'smooth'})}catch(x){}}}
+const hl=s=>{HL=s||'';applyHL()};
+const stopSay=()=>{SK++;SAYDONE=null;try{webkit.messageHandlers.speakStop.postMessage(1);return}catch(e){}try{speechSynthesis.cancel()}catch(e){}};
+const stopAll=()=>{PLAY++;stopSay();hl('')};
+function say(t,done){stopSay();const tok=++SK,f=()=>{if(tok==SK){SAYDONE=null;done&&done()}};SAYDONE=f;
+ setTimeout(f,t.length*110+5000);
+ try{webkit.messageHandlers.speak.postMessage(t);return}catch(e){}
+ try{const u=new SpeechSynthesisUtterance(t);u.lang='fr-FR';const v=speechSynthesis.getVoices().find(v=>/^fr/i.test(v.lang));if(v)u.voice=v;u.onend=u.onerror=f;speechSynthesis.speak(u);return}catch(e){}
+ setTimeout(f,Math.min(9000,t.length*70))}
+window.onSpeakEnd=()=>SAYDONE&&SAYDONE();
+function speakSegs(segs){const id=++PLAY;let i=0;const next=()=>{if(id!=PLAY)return;if(i>=segs.length){setTimeout(()=>{if(id==PLAY)hl('')},1200);return}const s=segs[i++];hl(s.h);say(s.t,next)};next()}
+const say1=t=>{msg(t);speakSegs([{t,h:''}])};
+const aiEnts=()=>deps(cur,arr).flatMap(g=>g.m.slice(0,6).map(x=>({g,x}))).sort((p,r)=>(p.x.tm-r.x.tm)||p.x.m-r.x.m);
+function aiCard(e,k){const g=e.g,n=g.r.route_short_name||'?',c=g.r.route_color?'#'+g.r.route_color:'#555',c2=g.r.route_text_color?'#'+g.r.route_text_color:'#fff',x=e.x;
+ return '<div class="card ln ab" data-k="'+k+'"><div class="b" style="background:'+c+';color:'+c2+'">'+esc(n)+'</div><div class="d"><b>'+esc(g.hd)+'</b><small>'+(x.tm?'demain à '+x.t:'départ '+x.t)+'</small>'+(x.a?'<small class="ar2">➜ arrivée '+x.a+'</small>':'')+'</div><div class="m">'+dm(x)+'</div></div>'}
+function renderAI(){const P=paris(),E=aiEnts().slice(AI.off,AI.off+3);$('#clock').textContent=P.hm;
+ $('#view').innerHTML='<div class="card full top"><b class="nm">🎙 Résultat</b><button class="chip" id="aic">✕ Tout afficher</button></div><div class="sprow full"><div class="card sp" id="sd"><small>🚏 Départ</small><b>'+esc(tc(cur))+'</b></div>'+(arr?'<div class="card sp" id="sa"><small>🏁 Arrivée</small><b>'+esc(tc(arr))+'</b></div>':'')+'</div>'+(E.length?E.map(aiCard).join(''):'<div class="card full">Aucun passage.</div>');
+ $('#aic').onclick=()=>{stopAll();AI=null;render()};
+ $('#view').querySelectorAll('.ab').forEach(el=>el.onclick=()=>{hap();const k=+el.dataset.k,e=E[k];if(e)speakSegs([{t:one(e,!!arr)+'.',h:'[data-k="'+k+'"]'}])});
+ applyHL()}
+function answer(raw){stopAll();
+ if(!S.list)return say1('Les horaires se chargent encore, réessaie dans une seconde.');
  const q=parseQ(raw);let d=findStop(q.b),a=q.a?findStop(q.a):null,pre='';
- if(!d&&LAST&&LAST.ents&&q.more&&!q.a){const L=LAST,n=L.ents.slice(L.k,L.k+3);if(!n.length)return reply('Je n’ai pas d’autre passage à te proposer.');L.k+=3;return reply('Ensuite : '+n.map(e=>one(e,L.arr)).join(' ; puis ')+'.')}
- const nr=()=>{const n=near(1)[0];if(n){d=n.s;pre='Ton arrêt le plus proche est '+tc(d.n)+', à '+fd(n.d)+'. '}};
+ if(!d&&AI&&q.more&&!q.a){AI.off+=3;const E=aiEnts().slice(AI.off,AI.off+3);if(!E.length){AI.off-=3;return say1('Je n’ai pas d’autre passage à te proposer.')}render();return speakSegs(E.map((e,k)=>({t:(k?'Puis ':'Ensuite : ')+one(e,!!arr)+'.',h:'[data-k="'+k+'"]'})))}
+ const nr=()=>{const n=near(1)[0];if(n){d=n.s;pre='Ton arrêt le plus proche est '+tc(d.n)+', à '+fd(n.d)+'.'}};
  if(!d&&q.near&&POS)nr();
- if(!d&&cur){d=S.list.find(s=>s.n==cur)||null;if(d)pre='Depuis '+tc(d.n)+'. '}
+ if(!d&&cur)d=S.list.find(s=>s.n==cur)||null;
  if(!d&&POS)nr();
- if(!d)return reply('Je n’ai pas reconnu ton arrêt de départ. Dis par exemple : le prochain bus à Hôtel de Ville pour aller à la gare.');
- if(q.a&&!a){go(d.n,'');return reply('Je n’ai pas reconnu l’arrêt d’arrivée. Répète-le moi, par exemple : je vais à Valenciennes Gare.')}
- if(a&&a.n==d.n){go(d.n,'');return reply('Le départ et l’arrivée sont le même arrêt, ça ne me semble pas être ce que tu veux.')}
- go(d.n,a?a.n:'');
- const ents=deps(d.n,a?a.n:'').flatMap(g=>g.m.slice(0,4).map(x=>({g,x}))).sort((p,r)=>(p.x.tm-r.x.tm)||p.x.m-r.x.m);
- LAST={ents,k:1,arr:!!a};
- if(!ents.length)return reply(pre+(a?'Je ne trouve aucun bus direct entre '+tc(d.n)+' et '+tc(a.n)+'. Essaie un autre arrêt de départ ou d’arrivée, par exemple un arrêt plus proche de la gare.':'Je ne trouve aucun passage au départ de '+tc(d.n)+'.'));
- const e=ents[0],x=e.x;let t=pre+'Au départ de '+tc(d.n)+', le prochain bus est la ligne '+(e.g.r.route_short_name||'?')+', direction '+tc(e.g.hd)+'. ';
- t+=x.tm?'Il n’y a plus de bus aujourd’hui : le premier est demain à '+spT(x.t)+'. ':'Il passe '+spM(x.m)+', à '+spT(x.t)+'. ';
- if(a&&x.a)t+='Il vous déposera à '+tc(a.n)+' à '+spT(x.a)+', après '+Math.round(x.rd/60)+' minutes de trajet'+(x.tm?'. ':'. Vous y serez '+spM(minTo(x))+'. ');
- const nx=ents.slice(1,3);LAST.k=1+nx.length;
- if(nx.length)t+='Ensuite : '+nx.map(y=>one(y,!!a)).join(' ; puis ')+'.';
- reply(t.trim())}
-const stopSay=()=>{try{webkit.messageHandlers.speakStop.postMessage(1);return}catch(e){}try{speechSynthesis.cancel()}catch(e){}};
-function say(t){stopSay();try{webkit.messageHandlers.speak.postMessage(t);return}catch(e){}
- try{const u=new SpeechSynthesisUtterance(t);u.lang='fr-FR';const v=speechSynthesis.getVoices().find(v=>/^fr/i.test(v.lang));if(v)u.voice=v;speechSynthesis.speak(u)}catch(e){}}
+ if(!d)return say1('Je n’ai pas reconnu ton arrêt de départ. Dis par exemple : le prochain bus à Hôtel de Ville pour aller à la gare.');
+ if(q.a&&!a){go(d.n,'');return say1('Je n’ai pas reconnu l’arrêt d’arrivée. Répète-le moi.')}
+ if(a&&a.n==d.n){go(d.n,'');return say1('Le départ et l’arrivée sont le même arrêt.')}
+ go(d.n,a?a.n:'');AI={off:0};render();
+ const E=aiEnts().slice(0,3);
+ if(!E.length)return say1(a?'Je ne trouve aucun bus direct entre '+tc(d.n)+' et '+tc(a.n)+'. Essaie un autre arrêt.':'Je ne trouve aucun passage au départ de '+tc(d.n)+'.');
+ const e=E[0],x=e.x,segs=[{t:pre||'Au départ de '+tc(d.n)+'.',h:'#sd'}];
+ segs.push({t:'Le prochain bus est la ligne '+(e.g.r.route_short_name||'?')+', direction '+tc(e.g.hd)+'. '+(x.tm?'Plus de bus aujourd’hui : le premier est demain à '+spT(x.t)+'.':'Il passe '+spM(x.m)+', à '+spT(x.t)+'.'),h:'[data-k="0"]'});
+ if(a&&x.a)segs.push({t:'Il vous déposera à '+tc(a.n)+' à '+spT(x.a)+', après '+Math.round(x.rd/60)+' minutes de trajet.'+(x.tm?'':' Vous y serez '+spM(minTo(x))+'.'),h:'#sa'});
+ E.slice(1).forEach((y,i)=>segs.push({t:(i?'Puis ':'Ensuite : ')+one(y,!!a)+'.',h:'[data-k="'+(i+1)+'"]'}));
+ speakSegs(segs)}
 let REC=null;const lis=()=>document.body.classList.contains('lis'),setLis=on=>document.body.classList.toggle('lis',on);
-function aiOpen(){$('#ai').hidden=false;$('#mic').style.display='none'}
-function stopListen(){setLis(false);try{webkit.messageHandlers.listenStop.postMessage(1);return}catch(e){}try{REC&&REC.stop()}catch(e){}}
-function listen(){stopSay();aiOpen();setLis(true);$('#ait').textContent='Je t’écoute…';$('#aia').textContent='';
+function stopListen(){setLis(false);msg('');try{webkit.messageHandlers.listenStop.postMessage(1);return}catch(e){}try{REC&&REC.stop()}catch(e){}}
+function listen(){stopAll();setLis(true);msg('🎙 Je t’écoute…');
  try{webkit.messageHandlers.listen.postMessage(1);return}catch(e){}
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!SR){setLis(false);$('#aia').textContent='La reconnaissance vocale n’est pas disponible ici : écris ta question ci-dessous.';return}
+ if(!SR){setLis(false);msg('');const v=prompt('Pose ta question (ex. : le prochain bus à Poterne, je vais à la gare)');if(v)answer(v);return}
  try{REC&&REC.abort()}catch(e){}
  REC=new SR();REC.lang='fr-FR';REC.interimResults=true;REC.continuous=false;
  REC.onresult=e=>{let s='',f=false;for(const r of e.results){s+=r[0].transcript;if(r.isFinal)f=true}window.onSpeech(s,f)};
  REC.onerror=e=>window.onSpeechErr(e.error||'erreur');REC.onend=()=>setLis(false);
  try{REC.start()}catch(e){window.onSpeechErr(e.message)}}
-window.onSpeech=(t,f)=>{$('#ait').textContent='« '+t+' »';if(f){setLis(false);answer(t)}};
-window.onSpeechErr=e=>{setLis(false);$('#ait').textContent='';$('#aia').textContent=/allowed|denied|permission|audio-capture/.test(e)?'Micro ou reconnaissance vocale non autorisés : active-les dans Réglages, ou écris ta question ci-dessous.':'Je n’ai rien entendu, réessaie.'};
-$('#mic').onclick=$('#aim').onclick=()=>{hap();lis()?stopListen():listen()};
-$('#aix').onclick=()=>{stopSay();stopListen();$('#ai').hidden=true;$('#mic').style.display=''};
-$('#aip').onclick=stopSay;
-$('#aiq').onkeydown=e=>{if(e.key!='Enter')return;const v=e.target.value.trim();e.target.value='';if(v){stopSay();aiOpen();answer(v)}};
+window.onSpeech=(t,f)=>{if(f){setLis(false);msg('');answer(t)}};
+window.onSpeechErr=e=>{setLis(false);msg(/allowed|denied|permission|audio-capture/.test(e)?'Micro ou reconnaissance vocale non autorisés : active-les dans Réglages.':'Je n’ai rien entendu, réessaie.')};
+$('#mic').onclick=()=>{hap();lis()?stopListen():listen()};
 const lcmp=(a,b)=>{const x=parseInt(a),y=parseInt(b);return(isNaN(x)?1e9:x)-(isNaN(y)?1e9:y)||a.localeCompare(b,'fr')};
 function buildLines(){if(S.sr)return;const h=S.h,ti=h.indexOf('trip_id'),si=h.indexOf('stop_id'),id2n=new Map();for(const e of S.byName.values())for(const i of e.ids)id2n.set(i,e.n);
  S.sr=new Map();S.lines=new Map();const seen=new Set();
