@@ -225,7 +225,7 @@ const hl=s=>{HL=s||'';applyHL()};
 const stopSay=()=>{SK++;SAYDONE=null;try{webkit.messageHandlers.speakStop.postMessage(1);return}catch(e){}try{speechSynthesis.cancel()}catch(e){}};
 const stopAll=()=>{PLAY++;stopSay();hl('')};
 function say(t,done){stopSay();const tok=++SK,f=()=>{if(tok==SK){SAYDONE=null;done&&done()}};SAYDONE=f;
- setTimeout(f,t.length*110+5000);
+ setTimeout(f,t.length*90+2500);
  try{webkit.messageHandlers.speak.postMessage(t);return}catch(e){}
  try{const u=new SpeechSynthesisUtterance(t);u.lang='fr-FR';const v=speechSynthesis.getVoices().find(v=>/^fr/i.test(v.lang));if(v)u.voice=v;u.onend=u.onerror=f;speechSynthesis.speak(u);return}catch(e){}
  setTimeout(f,Math.min(9000,t.length*70))}
@@ -260,8 +260,14 @@ function answer(raw){stopAll();
  E.slice(1).forEach((y,i)=>segs.push({t:(i?'Puis ':'Ensuite : ')+one(y,!!a)+'.',h:'[data-k="'+(i+1)+'"]'}));
  speakSegs(segs)}
 let REC=null;const lis=()=>document.body.classList.contains('lis'),setLis=on=>document.body.classList.toggle('lis',on);
-function stopListen(){setLis(false);msg('');try{webkit.messageHandlers.listenStop.postMessage(1);return}catch(e){}try{REC&&REC.stop()}catch(e){}}
-function listen(){stopAll();setLis(true);msg('🎙 Je t’écoute…');
+function stopListen(){setLis(false);msg('');stopSay();try{webkit.messageHandlers.listenStop.postMessage(1);return}catch(e){}try{REC&&REC.stop()}catch(e){}}
+let AC=null;
+function tone(up){try{webkit.messageHandlers.beep.postMessage(up?1:0);return}catch(e){}
+ try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state=='suspended')AC.resume();const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.type='sine';
+  o.frequency.setValueAtTime(up?660:880,t);o.frequency.exponentialRampToValueAtTime(up?990:550,t+.12);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.3,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.17);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.19)}catch(e){}}
+function listen(){stopAll();setLis(true);msg('🎙 Je t’écoute…');tone(1);say('Je t’écoute.',()=>{if(!lis())return;tone(1);startRec()})}
+function startRec(){
  try{webkit.messageHandlers.listen.postMessage(1);return}catch(e){}
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SR){setLis(false);msg('');const v=prompt('Pose ta question (ex. : le prochain bus à Poterne, je vais à la gare)');if(v)answer(v);return}
@@ -270,7 +276,7 @@ function listen(){stopAll();setLis(true);msg('🎙 Je t’écoute…');
  REC.onresult=e=>{let s='',f=false;for(const r of e.results){s+=r[0].transcript;if(r.isFinal)f=true}window.onSpeech(s,f)};
  REC.onerror=e=>window.onSpeechErr(e.error||'erreur');REC.onend=()=>setLis(false);
  try{REC.start()}catch(e){window.onSpeechErr(e.message)}}
-window.onSpeech=(t,f)=>{if(f){setLis(false);msg('');answer(t)}};
+window.onSpeech=(t,f)=>{if(f){setLis(false);msg('');tone(0);answer(t)}};
 window.onSpeechErr=e=>{setLis(false);msg(/allowed|denied|permission|audio-capture/.test(e)?'Micro ou reconnaissance vocale non autorisés : active-les dans Réglages.':'Je n’ai rien entendu, réessaie.')};
 $('#mic').onclick=()=>{hap();lis()?stopListen():listen()};
 const lcmp=(a,b)=>{const x=parseInt(a),y=parseInt(b);return(isNaN(x)?1e9:x)-(isNaN(y)?1e9:y)||a.localeCompare(b,'fr')};
