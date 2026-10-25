@@ -43,6 +43,8 @@ body{padding-bottom:100px}
 #ait{color:var(--mu);font-size:15px;min-height:20px;margin:6px 0}#aia{font-size:17px;line-height:1.4;max-height:34vh;overflow:auto}
 .lis #mic,.lis #aim{animation:pl 1.1s infinite}
 @keyframes pl{0%{box-shadow:0 0 0 0 rgba(255,106,77,.65)}100%{box-shadow:0 0 0 20px rgba(255,106,77,0)}}
+.lc{display:flex;flex-wrap:wrap;gap:8px;max-height:34vh;overflow:auto;padding:2px}#lb{margin:8px 0 0}#lp{margin-top:6px}
+.lb{min-width:54px;border:2px solid transparent;border-radius:14px;padding:9px 8px;font-weight:800;font-size:17px;opacity:.55;cursor:pointer;font-family:inherit}.lb.on{opacity:1;border-color:var(--tx);box-shadow:0 0 0 3px var(--ac)}
 .sec{color:var(--mu);font-size:12px;text-transform:uppercase;letter-spacing:.6px;padding:12px 8px 4px}a{color:var(--ac)}
 @media (orientation:landscape) and (max-height:520px){
  body{max-width:none;padding:6px calc(14px + env(safe-area-inset-right,0px)) 6px calc(14px + env(safe-area-inset-left,0px))}
@@ -69,7 +71,9 @@ body{padding-bottom:100px}
 <div id="app" hidden>
 <div class="chips" id="fav"></div>
 <div class="g pick"><div class="cb"><input id="q" placeholder="🚏 Départ : taper ou choisir un arrêt…" autocomplete="off" autocapitalize="off" enterkeyhint="go"><div id="res" class="g dd" hidden></div></div>
-<div class="cb"><input id="q2" placeholder="🏁 Arrivée (facultatif) : taper ou choisir…" autocomplete="off" autocapitalize="off" enterkeyhint="go"><div id="res2" class="g dd" hidden></div></div><div class="slot"><span>Tranche horaire (facultatif)</span><input type="time" id="s1"><span>à</span><input type="time" id="s2"><button class="chip" id="s0">✕</button></div></div>
+<div class="cb"><input id="q2" placeholder="🏁 Arrivée (facultatif) : taper ou choisir…" autocomplete="off" autocapitalize="off" enterkeyhint="go"><div id="res2" class="g dd" hidden></div></div><button class="chip" id="lb">🚌 Lignes : toutes</button>
+<div id="lp" hidden><div class="slot"><button class="chip" id="lnear">📍 Près de moi</button><button class="chip" id="lrad">600 m</button><button class="chip" id="lclr">Tout effacer</button></div><div class="sec" id="lcnt"></div><div id="lchips" class="lc"></div></div>
+<div class="slot"><span>Tranche horaire (facultatif)</span><input type="time" id="s1"><span>à</span><input type="time" id="s2"><button class="chip" id="s0">✕</button></div></div>
 <div id="view"></div>
 <button id="mic" aria-label="Assistant vocal">🎙</button>
 <div id="ai" class="g" hidden><div class="aih"><b>🎙 Assistant vocal</b><button class="chip" id="aix">✕</button></div>
@@ -82,11 +86,11 @@ body{padding-bottom:100px}
 <script>
 const $=s=>document.querySelector(s);
 const S={byName:new Map(),trips:new Map(),routes:new Map(),cal:[],cd:new Map(),L:[],h:[]};
-let hz=4,fav=[],rec=[],fl=[],onlyF=false,slot={f:'',t:''},dir='',cur=null,arr='',op='',LR=null,LD=[];
+let sl=[],RAD=600,lnear=true,hz=4,fav=[],rec=[],fl=[],onlyF=false,slot={f:'',t:''},dir='',cur=null,arr='',op='',LR=null,LD=[];
 const AL=[{r:'T2',u:'2026-10-26',t:'Ligne interrompue jusqu’au lundi 26 octobre : prenez les bus relais T2Bus (info transvilles.com, vérifiée le 24/10).'}];
 const alr=n=>{const P=paris(),k=P.y+'-'+p2(P.m)+'-'+p2(P.d);return AL.find(a=>a.r==n&&k<=a.u)};
-try{fav=JSON.parse(localStorage.getItem('fav')||'[]');rec=JSON.parse(localStorage.getItem('rec')||'[]');fl=JSON.parse(localStorage.getItem('fl')||'[]');hz=+localStorage.getItem('hz')||4}catch(e){}
-const sv=()=>{try{localStorage.setItem('fav',JSON.stringify(fav));localStorage.setItem('rec',JSON.stringify(rec));localStorage.setItem('fl',JSON.stringify(fl));localStorage.setItem('hz',hz)}catch(e){}};
+try{fav=JSON.parse(localStorage.getItem('fav')||'[]');rec=JSON.parse(localStorage.getItem('rec')||'[]');fl=JSON.parse(localStorage.getItem('fl')||'[]');hz=+localStorage.getItem('hz')||4;sl=JSON.parse(localStorage.getItem('sl')||'[]')}catch(e){}
+const sv=()=>{try{localStorage.setItem('fav',JSON.stringify(fav));localStorage.setItem('rec',JSON.stringify(rec));localStorage.setItem('fl',JSON.stringify(fl));localStorage.setItem('hz',hz);localStorage.setItem('sl',JSON.stringify(sl))}catch(e){}};
 const idb=(m,k,v)=>new Promise((res,rej)=>{const r=indexedDB.open('bv',1);r.onupgradeneeded=()=>r.result.createObjectStore('s');r.onerror=rej;r.onsuccess=()=>{const o=r.result.transaction('s',m=='get'?'readonly':'readwrite').objectStore('s');const q=m=='get'?o.get(k):m=='put'?o.put(v,k):o.delete(k);q.onsuccess=()=>res(q.result);q.onerror=rej}});
 const pl=l=>{if(l.indexOf('"')<0)return l.split(',');const r=[];let c='',q=false;for(const ch of l){if(ch=='"')q=!q;else if(ch==','&&!q){r.push(c);c=''}else c+=ch}r.push(c);return r};
 const csv=t=>{const L=t.replace(/^\uFEFF/,'').split(/\r?\n/),h=pl(L[0]).map(x=>x.trim()),o=[];for(let i=1;i<L.length;i++){if(!L[i])continue;const v=pl(L[i]),r={};h.forEach((k,j)=>r[k]=v[j]);o.push(r)}return o};
@@ -104,7 +108,7 @@ async function load(buf){
   S.cal=csv(await rd('calendar.txt'));
   for(const c of csv(await rd('calendar_dates.txt'))){if(!S.cd.has(c.date))S.cd.set(c.date,[]);S.cd.get(c.date).push(c)}
   S.L=(await rd('stop_times.txt')).split('\n');S.h=pl(S.L[0].replace(/^\uFEFF/,'').trim());
-  S.list=[...S.byName.values()].map(e=>({n:e.n,nn:nrm(e.n),lat:e.c?e.la/e.c:null,lon:e.c?e.lo/e.c:null})).sort((a,b)=>a.n.localeCompare(b.n,'fr'));
+  S.sr=null;S.list=[...S.byName.values()].map(e=>({n:e.n,nn:nrm(e.n),lat:e.c?e.la/e.c:null,lon:e.c?e.lo/e.c:null})).sort((a,b)=>a.n.localeCompare(b.n,'fr'));
   $('#setup').hidden=true;$('#app').hidden=false;msg(S.byName.size+' arrêts chargés');
   drawFav();if(fav[0]||rec[0])pick(fav[0]||rec[0]);else{asked=true;locate(()=>{if(POS&&!cur){const n=near(1)[0];if(n)go(n.s.n,'')}})}
  }catch(e){msg('Erreur de lecture : '+e.message);$('#setup').hidden=false}
@@ -138,11 +142,11 @@ function card(g,i){const n=g.r.route_short_name||'?',c=g.r.route_color?'#'+g.r.r
  return '<div class="card ln tap'+(al?' wn':'')+'" data-i="'+i+'">'+st+bd+'<div class="d"><b>'+esc(g.hd)+'</b>'+(al?'<small class="warn">⚠ '+esc(al.t)+'</small>':'')+(f.a?'<small class="ar2">➜ arrivée '+f.a+'</small>':'')+(hzl(g).length>1?'<small>puis '+hzl(g).slice(1,4).map(x=>x.m<60&&!x.tm?x.m+' min':x.t).join(' · ')+'</small>':'')+'</div><div class="m">'+dm(f)+'</div></div>'}
 function render(c){
  if(!cur)return;const k=key(),isF=fav.includes(k),P=paris(),R=(LR=c&&LR?LR:deps(cur,arr)),
- D=R.filter(g=>(!dir||g.d==dir)&&(!onlyF||fl.includes(g.r.route_short_name))).sort((a,b)=>fl.includes(b.r.route_short_name)-fl.includes(a.r.route_short_name));
+ D=R.filter(g=>(!dir||g.d==dir)&&(!onlyF||fl.includes(g.r.route_short_name))&&(!sl.length||sl.includes(g.r.route_short_name))).sort((a,b)=>fl.includes(b.r.route_short_name)-fl.includes(a.r.route_short_name));
  LD=D;$('#clock').textContent=P.hm;
  $('#view').innerHTML='<div class="card full top"><div><b class="nm">'+esc(cur)+'</b>'+(arr?'<small>➜ '+esc(arr)+'</small>':'')+(slot.f||slot.t?'<small> · '+(slot.f||'00:00')+' → '+(slot.t||'23:59')+'</small>':'')+'</div><button class="star" id="sb">'+(isF?'★':'☆')+'</button></div>'+
  '<div class="ctl full"><button class="chip" id="dr">'+(dir==''?'⇄ Tous les sens':dir=='0'?'⇄ Aller':'⇄ Retour')+'</button><button class="chip" id="hz">⏱ '+hz+' h</button>'+(fl.length?'<button class="chip" id="of">'+(onlyF?'★ Mes lignes seulement':'☆ Mes lignes')+'</button>':'')+(arr?'<button class="chip" id="sw">↺ Trajet retour</button><button class="chip" id="cl">✕ Sans arrivée</button>':'')+'</div>'+
- (D.length?D.map(card).join(''):'<div class="card full">Aucun passage'+(arr?' vers cette arrivée':'')+'.</div>');
+ (D.length?D.map(card).join(''):'<div class="card full">Aucun passage'+(sl.length?' des lignes choisies':'')+(arr?' vers cette arrivée':'')+'.</div>');
  $('#dr').onclick=()=>{dir=dir==''?'0':dir=='0'?'1':'';render(true)};
  $('#hz').onclick=()=>{hz=hz>=4?1:hz+1;sv();render(true)};
  $('#sb').onclick=()=>{fav=isF?fav.filter(x=>x!=k):[...fav,k];sv();drawFav();render(true)};
@@ -164,13 +168,13 @@ let POS=null,LOC='',asked=false;try{POS=JSON.parse(localStorage.getItem('pos')||
 const dist=(a,b,c,d)=>{const r=Math.PI/180,x=(c-a)*r,y=(d-b)*r*Math.cos((a+c)*r/2);return 6371000*Math.hypot(x,y)};
 const fd=m=>m<1000?Math.max(10,Math.round(m/10)*10)+' m':(m/1000).toFixed(1).replace('.',',')+' km';
 const dOf=s=>POS&&s.lat!=null?dist(POS.lat,POS.lon,s.lat,s.lon):null;
-const near=n=>POS?S.list.filter(s=>s.lat!=null).map(s=>({s,d:dOf(s)})).sort((a,b)=>a.d-b.d).slice(0,n):[];
+const near=n=>POS?S.list.filter(s=>s.lat!=null&&okStop(s)).map(s=>({s,d:dOf(s)})).sort((a,b)=>a.d-b.d).slice(0,n):[];
 function locate(cb){LOC='wait';
  window.onLoc=(la,lo)=>{POS={lat:la,lon:lo};try{localStorage.setItem('pos',JSON.stringify(POS))}catch(e){}LOC='ok';cb&&cb()};
  window.onLocErr=()=>{LOC='err';cb&&cb()};
  try{if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.locate){webkit.messageHandlers.locate.postMessage(1);return}}catch(e){}
  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>window.onLoc(p.coords.latitude,p.coords.longitude),()=>window.onLocErr(),{enableHighAccuracy:true,timeout:12000,maximumAge:60000});else window.onLocErr()}
-const matches=q=>{const w=nrm(q);if(!w)return[];const t=w.split(' ');return S.list.filter(s=>t.every(x=>s.nn.includes(x))).map(s=>({s,d:dOf(s),p:s.nn.startsWith(w)?0:(' '+s.nn).includes(' '+w)?1:2})).sort((a,b)=>a.p-b.p||(a.d!=null&&b.d!=null?a.d-b.d:a.s.n.localeCompare(b.s.n,'fr')))};
+const matches=q=>{const w=nrm(q);if(!w)return[];const t=w.split(' ');return S.list.filter(s=>t.every(x=>s.nn.includes(x))&&okStop(s)).map(s=>({s,d:dOf(s),p:s.nn.startsWith(w)?0:(' '+s.nn).includes(' '+w)?1:2})).sort((a,b)=>a.p-b.p||(a.d!=null&&b.d!=null?a.d-b.d:a.s.n.localeCompare(b.s.n,'fr')))};
 const row=(n,d)=>'<button class="row" data-n="'+esc(n)+'"><span>'+esc(n)+'</span>'+(d?'<small>'+d+'</small>':'')+'</button>';
 const closers=[];
 function combo(inp,box,onPick){
@@ -179,7 +183,7 @@ function combo(inp,box,onPick){
    h+='<button class="row loc" data-loc="1"><span>📍 '+(LOC=='wait'?'Recherche de ta position…':POS?'Actualiser ma position':'Trouver les arrêts près de moi')+'</span></button>';
    if(LOC=='err')h+='<div class="sec">Position indisponible : autorise la localisation (Réglages), ou tape le nom.</div>';
    if(POS)h+='<div class="sec">Les plus proches de toi</div>'+near(8).map(x=>row(x.s.n,fd(x.d))).join('');
-   h+='<div class="sec">Tous les arrêts (A → Z)</div>'+S.list.map(s=>row(s.n,'')).join('')}
+   h+='<div class="sec">Tous les arrêts (A → Z)</div>'+S.list.filter(okStop).map(s=>row(s.n,'')).join('')}
   else{const m=matches(q).slice(0,40);h=m.length?m.map(x=>row(x.s.n,x.d!=null?fd(x.d):'')).join(''):'<div class="sec">Aucun arrêt trouvé</div>'}
   box.innerHTML=h};
  const close=()=>{box.hidden=true};closers.push(close);
@@ -259,6 +263,26 @@ $('#mic').onclick=$('#aim').onclick=()=>{hap();lis()?stopListen():listen()};
 $('#aix').onclick=()=>{stopSay();stopListen();$('#ai').hidden=true;$('#mic').style.display=''};
 $('#aip').onclick=stopSay;
 $('#aiq').onkeydown=e=>{if(e.key!='Enter')return;const v=e.target.value.trim();e.target.value='';if(v){stopSay();aiOpen();answer(v)}};
+const lcmp=(a,b)=>{const x=parseInt(a),y=parseInt(b);return(isNaN(x)?1e9:x)-(isNaN(y)?1e9:y)||a.localeCompare(b,'fr')};
+function buildLines(){if(S.sr)return;const h=S.h,ti=h.indexOf('trip_id'),si=h.indexOf('stop_id'),id2n=new Map();for(const e of S.byName.values())for(const i of e.ids)id2n.set(i,e.n);
+ S.sr=new Map();S.lines=new Map();const seen=new Set();
+ for(let i=1;i<S.L.length;i++){const v=S.L[i].replace(/"/g,'').split(','),t=S.trips.get(v[ti]);if(!t)continue;const k=v[si]+'|'+t.route_id;if(seen.has(k))continue;seen.add(k);
+  const r=S.routes.get(t.route_id),sn=id2n.get(v[si]);if(!r||!sn)continue;const n=r.route_short_name||'?';
+  if(!S.lines.has(n))S.lines.set(n,{n,c:r.route_color?'#'+r.route_color:'#555',t:r.route_text_color?'#'+r.route_text_color:'#fff'});
+  let q=S.sr.get(sn);if(!q)S.sr.set(sn,q=new Set());q.add(n)}}
+function nearLines(){buildLines();const s=new Set();if(!POS)return s;for(const st of S.list){const d=dOf(st);if(d!=null&&d<=RAD)(S.sr.get(st.n)||[]).forEach(l=>s.add(l))}return s}
+function okStop(s){if(!sl.length)return true;buildLines();const q=S.sr.get(s.n);return !!q&&sl.some(l=>q.has(l))}
+function drawLines(){buildLines();const nl=lnear&&POS?nearLines():null,ls=[...S.lines.values()].filter(l=>!nl||nl.has(l.n)||sl.includes(l.n)).sort((a,b)=>lcmp(a.n,b.n));
+ $('#lchips').innerHTML=ls.map(l=>'<button class="lb'+(sl.includes(l.n)?' on':'')+'" data-l="'+esc(l.n)+'" style="background:'+l.c+';color:'+l.t+'">'+esc(l.n)+'</button>').join('')||'<span class="sec">Aucune ligne trouvée</span>';
+ $('#lnear').textContent=lnear?'📍 Près de moi':'🚌 Toutes les lignes';$('#lrad').textContent=RAD>=1000?'1 km':RAD+' m';$('#lrad').hidden=!lnear;
+ $('#lcnt').textContent=lnear?(POS?ls.length+' ligne'+(ls.length>1?'s':'')+' à moins de '+(RAD>=1000?'1 km':RAD+' m')+' de toi'+(sl.length?' (+ tes choix)':''):(LOC=='err'?'Position indisponible : autorise la localisation (Réglages).':'Recherche de ta position…')):ls.length+' lignes au total';
+ $('#lb').textContent='🚌 Lignes : '+(sl.length?sl.join(', '):'toutes')}
+function linesChanged(){sv();drawLines();if(sl.length&&POS&&cur&&!arr){const cs=S.list.find(s=>s.n==cur);if(cs&&!okStop(cs)){const n=near(1)[0];if(n){go(n.s.n,'');return}}}if(cur){op='';render(true)}}
+$('#lb').onclick=()=>{const p=$('#lp');p.hidden=!p.hidden;if(!p.hidden){if(!POS&&lnear)locate(drawLines);drawLines()}};
+$('#lchips').onclick=e=>{const b=e.target.closest('.lb');if(!b)return;hap();const l=b.dataset.l;sl=sl.includes(l)?sl.filter(x=>x!=l):[...sl,l];linesChanged()};
+$('#lnear').onclick=()=>{lnear=!lnear;if(lnear&&!POS)locate(drawLines);drawLines()};
+$('#lrad').onclick=()=>{RAD=RAD>=1000?300:RAD==300?600:1000;drawLines()};
+$('#lclr').onclick=()=>{sl=[];linesChanged()};
 const b64=b=>{let s='';const u=new Uint8Array(b);for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s)};
 $('#s1').onchange=$('#s2').onchange=()=>{slot={f:$('#s1').value,t:$('#s2').value};render()};$('#s0').onclick=()=>{slot={f:'',t:''};$('#s1').value=$('#s2').value='';render()};
 $('#f').onchange=async e=>{const b=await e.target.files[0].arrayBuffer();
